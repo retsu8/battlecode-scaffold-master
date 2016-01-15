@@ -11,6 +11,7 @@ public class RobotPlayer {
     static RobotType[] robotTypes = {RobotType.GUARD, RobotType.SCOUT, RobotType.SOLDIER, RobotType.SOLDIER,
             RobotType.SOLDIER, RobotType.SOLDIER, RobotType.TURRET, RobotType.TURRET};
 	static int[] possibleMovements = new int[]{0,1,-1,2,-2,3,-3,4};
+	static ArrayList<MapLocation> pastLocations = new ArrayList<MapLocation>();
     /**
      * run() is the method that is called when a robot is instantiated in the Battlecode world.
      * If this method returns, the robot dies!
@@ -46,15 +47,22 @@ public class RobotPlayer {
 		{if(rc.isCoreReady())
 			{if(rc.canMove(directions[2])){
 				rc.move(directions[2]);}
+			else
+				looking(directions[2]);
 			}
 		}
 	}
-	private static void finder(Direction ahead) throws GameActionException{
+	private static void looking(Direction ahead) throws GameActionException{
 		for(int i:possibleMovements){
 			Direction candidateDirection = Direction.values()[(ahead.ordinal()+i+8)%8];
-			if(rc.canMove(candidateDirection));{
-				rc.move(candidateDirection);
-				break;
+			MapLocation candidateLocation = rc.getLocation().add(candidateDirection);
+			if(rc.canMove(candidateDirection) && !pastLocations.contains(candidateLocation)){
+				pastLocations.add(rc.getLocation());
+				if(pastLocations.size()> 20){
+					pastLocations.remove(0);
+					rc.move(candidateDirection);
+					break;
+				}
 			}
 		}
 	}
