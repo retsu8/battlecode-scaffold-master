@@ -34,7 +34,21 @@ public class RobotPlayer {
 				}
         	}
         }
-        if(rc.getTeam()==myTeam && rc.getType() != RobotType.ARCHON)
+        if(rc.getType() == RobotType.VIPER)
+        {
+        	if(rc.isCoreReady())
+        	{
+        		try {
+        			attackFriendly();
+					repeat();
+					Clock.yield();
+				} catch (GameActionException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+        	}
+        }
+        if(rc.getType() == RobotType.SCOUT){
         while(true){
         	try{
         		repeat();
@@ -42,15 +56,27 @@ public class RobotPlayer {
         	}catch (GameActionException e){
         		e.printStackTrace();
         	}
-        }
+        }}
     }
-	private static void repeat() throws GameActionException{
-    	Team myTeam = rc.getTeam();
-        Team enemyTeam = myTeam.opponent();
+	private static void attackFriendly() {
+		Team myTeam = rc.getTeam();
+	    Team enemyTeam = myTeam.opponent();
+		RobotInfo[] team = rc.senseNearbyRobots(rc.getType().attackRadiusSquared,myTeam);
+		if(team.length > 0 && rc.getType().canInfect())
+			if(rc.isWeaponReady())
+				try {
+					rc.attackLocation(team[0].location);
+				} catch (GameActionException e) {
+					e.printStackTrace();
+				}
+		
+	} 
+	private static void repeat() throws GameActionException{	
+		Team myTeam = rc.getTeam();
+	    Team enemyTeam = myTeam.opponent();
 		RobotInfo[] zombieEnemies = rc.senseNearbyRobots(rc.getType().attackRadiusSquared,Team.ZOMBIE);
 		RobotInfo[] enemy = rc.senseNearbyRobots(rc.getType().attackRadiusSquared,enemyTeam);
-		RobotInfo[] allEnemys = joinRobotInfo(zombieEnemies,enemy); 
-		
+		RobotInfo[] allEnemys = joinRobotInfo(zombieEnemies,enemy); 	
 		if (allEnemys.length > 0 && rc.getType().canAttack())
 			{if(rc.isWeaponReady()){
 				rc.attackLocation(allEnemys[0].location);
@@ -94,7 +120,8 @@ public class RobotPlayer {
 	}
 	private static void creationSpot(Direction ahead) throws GameActionException
 	{
-		int fate = (int) (Math.random()*1000);
+		Random rand = new Random();
+		int fate = rand.nextInt(1000);
 		if(rc.isCoreReady())
 		{
 			for(int i:possibleMovements){
@@ -102,7 +129,10 @@ public class RobotPlayer {
 				Direction candidateDirection = Direction.values()[(ahead.ordinal()+i+8)%8];
 				MapLocation loc = rc.getLocation().add(candidateDirection);
 				if(rc.isLocationOccupied(loc) == false)
-					rc.build(directions[0], robotTypes[fate%8]);
+					if(rc.getRoundNum()<20)
+						rc.build(candidateDirection, RobotType.VIPER);
+					else
+						rc.build(candidateDirection, robotTypes[fate%8]);
 			}
 			}
 		}
