@@ -59,7 +59,7 @@ public class RobotPlayer {
         	}
         }}
     }
-	private static void runaway() {
+	private static void runaway() { //code to have robot run away from all enemy troops/ currently broken
 		Team enemyTeam = rc.getTeam().opponent();
 		RobotInfo[] hostile = rc.senseNearbyRobots(rc.getType().attackRadiusSquared,enemyTeam );
 		rc.emptySignalQueue();
