@@ -27,9 +27,16 @@ public class RobotPlayer {
         	while(true)
         	{
         		try {
+        			if(rc.senseNearbyRobots()!=null)
+        				runaway();
 					creationSpot(directions[2]);
+					if(rc.isCoreReady())
+					{if(rc.canMove(directions[2])){
+						rc.move(directions[2]);}
+					else
+						looking(directions[2]);
+					}
 				} catch (GameActionException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
         	}
@@ -38,14 +45,8 @@ public class RobotPlayer {
         {
         	if(rc.isCoreReady())
         	{
-        		try {
-        			attackFriendly();
-					repeat();
-					Clock.yield();
-				} catch (GameActionException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+        		attackFriendly();
+				Clock.yield();
         	}
         }
         if(rc.getType() == RobotType.SCOUT){
@@ -58,9 +59,36 @@ public class RobotPlayer {
         	}
         }}
     }
+	private static void runaway() {
+		Team enemyTeam = rc.getTeam().opponent();
+		RobotInfo[] hostile = rc.senseNearbyRobots(rc.getType().attackRadiusSquared,enemyTeam );
+		rc.emptySignalQueue();
+		while(rc.senseNearbyRobots(rc.getType().attackRadiusSquared, enemyTeam) != null){
+			try {
+				rc.broadcastSignal(rc.getType().attackRadiusSquared);
+				if(rc.canSenseLocation(hostile[0].location) == true)
+				{
+					for(int i=0; i<8; i++){
+						if(rc.canMove(directions[i]))
+							rc.move(directions[i]);
+					}
+				}
+			} catch (GameActionException e) {
+				e.printStackTrace();
+			}
+		if(rc.getHealth() < 20)
+		{
+			try {
+				rc.repair(rc.getLocation());
+			} catch (GameActionException e) {
+				e.printStackTrace();
+			}
+		}
+		}
+		
+	}
 	private static void attackFriendly() {
 		Team myTeam = rc.getTeam();
-	    Team enemyTeam = myTeam.opponent();
 		RobotInfo[] team = rc.senseNearbyRobots(rc.getType().attackRadiusSquared,myTeam);
 		if(team.length > 0 && rc.getType().canInfect())
 			if(rc.isWeaponReady())
@@ -128,11 +156,10 @@ public class RobotPlayer {
 			if(rc.isCoreReady()){
 				Direction candidateDirection = Direction.values()[(ahead.ordinal()+i+8)%8];
 				MapLocation loc = rc.getLocation().add(candidateDirection);
-				if(rc.isLocationOccupied(loc) == false)
-					if(rc.getRoundNum()<20)
-						rc.build(candidateDirection, RobotType.VIPER);
-					else
-						rc.build(candidateDirection, robotTypes[fate%8]);
+				if(rc.isLocationOccupied(loc) == false){
+					if(rc.getRoundNum()<20){rc.build(candidateDirection, RobotType.VIPER);}
+					else{rc.build(candidateDirection, robotTypes[fate%8]);}
+				}
 			}
 			}
 		}
