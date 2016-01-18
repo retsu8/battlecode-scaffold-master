@@ -105,7 +105,7 @@ public class RobotPlayer {
 			}
 		}
 		MapLocation[] finishedArray = new MapLocation[attackableEnemyArray.size()];
-		for(int i=0;i<attackableEnemyArray.size();i++){
+		for(int i=0;i<attackableEnemyArray.size();i++){ 
 			finishedArray[i]=attackableEnemyArray.get(i);
 		}
 		return finishedArray;
@@ -276,7 +276,7 @@ public class RobotPlayer {
 			if(rc.isCoreReady()){
 				Direction candidateDirection = Direction.values()[(ahead.ordinal()+i+8)%8];
 				MapLocation loc = rc.getLocation().add(candidateDirection);
-				if(rc.isLocationOccupied(loc) == false && rc.senseRubble(loc) < 25){
+				if(rc.isLocationOccupied(loc) == false && rc.senseRubble(loc) < GameConstants.RUBBLE_OBSTRUCTION_THRESH){
 					if(rc.hasBuildRequirements(RobotType.TURRET)){rc.build(candidateDirection, RobotType.TURRET);}
 					else{rc.build(candidateDirection, robotTypes[fate%8]);}
 				}
