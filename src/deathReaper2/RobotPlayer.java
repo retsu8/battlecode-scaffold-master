@@ -12,8 +12,7 @@ public class RobotPlayer {
     static RobotType[] robotTypes = {RobotType.GUARD, RobotType.SCOUT, RobotType.SOLDIER, RobotType.SOLDIER,
             RobotType.SOLDIER, RobotType.SOLDIER, RobotType.TURRET, RobotType.TURRET};
 	static int[] possibleMovements = new int[]{0,1,-1,2,-2,3,-3,4};
-	static ArrayList<MapLocation> pastLocations = new ArrayList<MapLocation>();
-	private static MapLocation[] parts = rc.sensePartLocations(1000000);
+	static ArrayList<MapLocation> pastLocations = new ArrayList<MapLocation>();	
     /**
      * run() is the method that is called when a robot is instantiated in the Battlecode world.
      * If this method returns, the robot dies!
@@ -34,7 +33,7 @@ public class RobotPlayer {
 	        else if(rc.getType() == RobotType.SOLDIER){
 	        	soldierCode();}
 	        else if(rc.getType() == RobotType.TURRET){
-						turretCode();}
+				turretCode();}
 	        else{ttmCode();}
 	        Clock.yield();
 	    }catch (GameActionException e) {
@@ -88,21 +87,29 @@ public class RobotPlayer {
 		Random rand = new Random(rc.getID());
 		int fate = rand.nextInt(1000);
 		RobotType robot = robotTypes[fate%8];
+		int choice = 1;
     	while(true){
     		try {
-    			if(rc.senseNearbyRobots().equals(rc.getTeam().opponent()) == true)
-    				runaway();
-	    		if(rc.getRoundNum()<20){creationSpot(directions[2], RobotType.TURRET);
-	    		}else
-	    			creationSpot(directions[2], robot);
-				if(rc.isCoreReady())
-				{if(rc.canMove(directions[2])){
-					rc.move(directions[2]);}
-				else{
-					if(rc.canMove(tryToMove(directions[2]))){
-						rc.move(tryToMove(directions[2]));
-						getParts(directions[2]);}
-					}
+    		if(rc.isCoreReady()){
+	    		if(rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared) != null)
+	    			choice = 0;
+	    		else if(rc.getRoundNum()<20){
+	    			choice = 1;}
+	    		else if(rc.canBuild(tryToMove(directions[2]), robot)){
+	    			choice = 2;}
+	    		else if(rc.canMove(directions[2])){
+    				choice = 3;}
+	    		else if(rc.canMove(tryToMove(directions[2]))){
+    				choice = 4;}
+	    		else choice = 2;
+    			}
+    			switch(choice){
+    			case 0:	choice = 2;//runaway(); break;
+    			case 1: creationSpot(directions[2], RobotType.TURRET); break;
+    			case 2: creationSpot(directions[2], robot); break;
+    			case 3: rc.move(directions[2]);break;
+    			case 4:	rc.move(tryToMove(directions[2]));getParts(directions[2]);break;
+    			default: creationSpot(directions[2], robot); break;
 				}
 	    		Clock.yield();
 			} catch (GameActionException e) {
@@ -111,7 +118,6 @@ public class RobotPlayer {
     	}
 		
 	}
-
 	private static void scoutCode() {	
 		while(true){
 			if(rc.isWeaponReady()){
@@ -149,6 +155,7 @@ public class RobotPlayer {
 		}
 	}
 	private static void getParts(Direction directions) throws GameActionException{
+		MapLocation[] parts = rc.sensePartLocations(1000000);
 		if(parts.length != 0){
 			MapLocation[] partsLocation = MapLocation.getAllMapLocationsWithinRadiusSq(rc.getLocation(), rc.getType().attackRadiusSquared);
 			if(rc.canMove(partsLocation[0].directionTo(rc.getLocation()))){
@@ -168,19 +175,18 @@ public class RobotPlayer {
 						if(rc.canMove(directions[i]))
 							rc.move(directions[i]);
 							Clock.getBytecodeNum();
+						}
+					}
+				if(rc.getHealth() < 20)
+				{rc.repair(rc.getLocation());
+					double health  = rc.getHealth()/2;
+					if(rc.getHealth() > health){
+					 break;
 					}
 				}
-			} catch (GameActionException e) {
-				e.printStackTrace();
-			}
-		if(rc.getHealth() < 20)
-		{
-			try {
-				rc.repair(rc.getLocation());
-			} catch (GameActionException e) {
-				e.printStackTrace();
-			}
-		}
+			Clock.yield();
+			}catch (GameActionException e) {
+				e.printStackTrace();}
 		}
 		
 	}
@@ -262,35 +268,36 @@ private static void guardCode() throws GameActionException {
 		MapLocation[] enemyArray = combineThings(visibleEnemyArray,incomingSignals);
 		
 		while(true){
-		if(enemyArray.length>0){
-			if(rc.isWeaponReady()){
-				//look for adjacent enemies to attack
-				for(MapLocation oneEnemy:enemyArray){
-					if(rc.canAttackLocation(oneEnemy)){
-						rc.setIndicatorString(0,"trying to attack");
-						rc.attackLocation(oneEnemy);
-						break;
+			if(enemyArray.length>0){
+				if(rc.isWeaponReady()){
+					//look for adjacent enemies to attack
+					for(MapLocation oneEnemy:enemyArray){
+						if(rc.canAttackLocation(oneEnemy)){
+							rc.setIndicatorString(0,"trying to attack");
+							rc.attackLocation(oneEnemy);
+							break;
+						}
+					}
+				}
+				//could not find any enemies adjacent to attack
+				//try to move toward them
+				if(rc.isCoreReady()){
+					MapLocation goal = enemyArray[0];
+					Direction toEnemy = rc.getLocation().directionTo(goal);
+					rc.pack();
+				}
+			}else{//there are no enemies nearby
+				//check to see if we are in the way of friends
+				//we are obstructing them
+				if(rc.isCoreReady()){
+					RobotInfo[] nearbyFriends = rc.senseNearbyRobots(2, rc.getTeam());
+					if(nearbyFriends.length>3){
+						Direction away = randomDirection();
+						rc.pack();
 					}
 				}
 			}
-			//could not find any enemies adjacent to attack
-			//try to move toward them
-			if(rc.isCoreReady()){
-				MapLocation goal = enemyArray[0];
-				Direction toEnemy = rc.getLocation().directionTo(goal);
-				rc.pack();
-			}
-		}else{//there are no enemies nearby
-			//check to see if we are in the way of friends
-			//we are obstructing them
-			if(rc.isCoreReady()){
-				RobotInfo[] nearbyFriends = rc.senseNearbyRobots(2, rc.getTeam());
-				if(nearbyFriends.length>3){
-					Direction away = randomDirection();
-					rc.pack();
-				}
-			}
-		}
+		Clock.yield();
 		}
 	}
 	private static Direction randomDirection() {
