@@ -83,11 +83,18 @@ public class RobotPlayer {
 		}
 	}
 	private static void archonCode() throws GameActionException{
+		Random rand = new Random(rc.getID());
+		int fate = rand.nextInt(1000);
+		RobotType robot = robotTypes[fate%8];
     	while(true){
     		try {
     			if(rc.senseNearbyRobots().equals(rc.getTeam().opponent()) == true)
     				runaway();
-				creationSpot(directions[2]);
+	    		if(rc.getRoundNum()<20){
+	    			creationSpot(directions[2], RobotType.TURRET);
+	    			}
+	    		else
+	    			creationSpot(directions[2], robot);
 				if(rc.isCoreReady())
 				{if(rc.canMove(directions[2])){
 					rc.move(directions[2]);}
@@ -347,24 +354,17 @@ private static void guardCode() throws GameActionException {
 		}
 		return enemyAll;
 	}
-	private static void creationSpot(Direction ahead) throws GameActionException //find spot to build
+	private static void creationSpot(Direction ahead, RobotType robot) throws GameActionException //find spot to build
 	{
-		Random rand = new Random(rc.getID());
-		int fate = rand.nextInt(1000);
-		RobotType robot = robotTypes[fate%8];
 		if(rc.isCoreReady())
 		{
 			for(int i:possibleMovements){
 			if(rc.isCoreReady()){
 				Direction candidateDirection = Direction.values()[(ahead.ordinal()+i+8)%8];
 				MapLocation loc = rc.getLocation().add(candidateDirection);
-				if(rc.isLocationOccupied(loc) == false && rc.senseRubble(loc) < GameConstants.RUBBLE_OBSTRUCTION_THRESH){
-					if(rc.hasBuildRequirements(RobotType.TURRET)){rc.build(candidateDirection, RobotType.TURRET);}
-					else{
-						if(rc.canBuild(candidateDirection, robot))
-							rc.build(candidateDirection, robot);}
+				if(rc.isLocationOccupied(loc) == false && rc.senseRubble(loc) < GameConstants.RUBBLE_OBSTRUCTION_THRESH && rc.canBuild(candidateDirection, robot)){
+					rc.build(candidateDirection, robot);}
 				}
-			}
 			}
 		}
 	}
