@@ -6,15 +6,13 @@ import java.util.*;
 public class RobotPlayer {
 
     static RobotController rc;
+	static Random rnd;
     static Direction[] directions = {Direction.NORTH, Direction.NORTH_EAST, Direction.EAST, Direction.SOUTH_EAST,
             Direction.SOUTH, Direction.SOUTH_WEST, Direction.WEST, Direction.NORTH_WEST};
     static RobotType[] robotTypes = {RobotType.GUARD, RobotType.SCOUT, RobotType.SOLDIER, RobotType.SOLDIER,
             RobotType.SOLDIER, RobotType.SOLDIER, RobotType.TURRET, RobotType.TURRET};
 	static int[] possibleMovements = new int[]{0,1,-1,2,-2,3,-3,4};
 	static ArrayList<MapLocation> pastLocations = new ArrayList<MapLocation>();
-	static int patient = 30;
-	static int id = 0;
-	static Direction possibleDirections = Direction.EAST;
     /**
      * run() is the method that is called when a robot is instantiated in the Battlecode world.
      * If this method returns, the robot dies!
@@ -22,107 +20,243 @@ public class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController rcIN) {
     	rc =rcIN;
-    	Team myTeam = rc.getTeam();
-        Team enemyTeam = myTeam.opponent();
-        if(rc.getTeam()==myTeam)
-        while(true){
-        	try{
-        		signaling();
-        		repeat();
-        		Clock.yield();
-        	}catch (GameActionException e){
-        		e.printStackTrace();
-        	}
-        }
-    }
-	private static void signaling() throws GameActionException {
-		if(rc.getType()==RobotType.ARCHON){
-			if(rc.getRoundNum()==0){
-		    	Signal[] incomingMessages = rc.emptySignalQueue();
-		    	id = incomingMessages.length;
-				rc.broadcastMessageSignal(0, 0, 100);
-			}else{
-				if(id==0){
-					sendinstructions();
-				}else{
-					followinstuctions();
+    	while(true){
+		try {
+	        if(rc.getType() == RobotType.ARCHON){
+	        	archonCode();}
+	        else if(rc.getType() == RobotType.VIPER){
+	        	viperCode();}
+	        else if(rc.getType() == RobotType.GUARD){
+				guardCode();}
+	        else if(rc.getType() == RobotType.SCOUT){
+	        	scoutCode();}
+	        else if(rc.getType() == RobotType.SOLDIER){
+	        	soldierCode();}
+	        else if(rc.getType() == RobotType.TURRET){
+						turretCode();}
+	        else{ttmCode();}
+	        }catch (GameActionException e) {
+			e.printStackTrace();
+		} }
+	}    
+	private static void ttmCode() throws GameActionException {
+		RobotInfo[] visibleEnemyArray = rc.senseHostileRobots(rc.getLocation(), 1000000);
+		Signal[] incomingSignals = rc.emptySignalQueue();
+		MapLocation[] enemyArray = combineThings(visibleEnemyArray,incomingSignals);
+		
+		if(enemyArray.length>0){
+			rc.unpack();
+			//could not find any enemies adjacent to attack
+			//try to move toward them
+			if(rc.isCoreReady()){
+				MapLocation goal = enemyArray[0];
+				Direction toEnemy = rc.getLocation().directionTo(goal);
+				tryToMove(toEnemy);
+			}
+		}else{//there are no enemies nearby
+			//check to see if we are in the way of friends
+			//we are obstructing them
+			if(rc.isCoreReady()){
+				RobotInfo[] nearbyFriends = rc.senseNearbyRobots(2, rc.getTeam());
+				if(nearbyFriends.length>3){
+					Direction away = randomDirection();
+					tryToMove(away);
+				}else{//maybe a friend is in need!
+					RobotInfo[] alliesToHelp = rc.senseNearbyRobots(1000000,rc.getTeam());
+					MapLocation weakestOne = findWeakest(alliesToHelp);
+					if(weakestOne!=null){//found a friend most in need
+						Direction towardFriend = rc.getLocation().directionTo(weakestOne);
+						tryToMove(towardFriend);
+					}
 				}
 			}
-		}else{
-			followinstuctions();}
-		
+		}
 	}
-	private static void followinstuctions() throws GameActionException{
-		rc.broadcastMessageSignal(rc.getTeam().ordinal(), possibleDirections.ordinal(), 225);		
-	}
-	private static void sendinstructions() {
-		Signal[] incomingMessages = rc.emptySignalQueue();
-		if(incomingMessages.length == 0)
-			return;
-		Signal currentMessage = null;
-		for(int messageIndex=0;messageIndex<incomingMessages.length;messageIndex++){
-			currentMessage= incomingMessages[messageIndex];
-			if(rc.getTeam().ordinal()==currentMessage.getMessage()[0]){
-				break;
+	public static void tryToMove(Direction forward) throws GameActionException{
+		if(rc.isCoreReady()){
+			for(int deltaD:possibleMovements){
+				Direction maybeForward = Direction.values()[(forward.ordinal()+deltaD+8)%8];
+				if(rc.canMove(maybeForward)){
+					rc.move(maybeForward);
+					return;
+				}
+			}
+			if(rc.getType().canClearRubble()){
+				//failed to move, look to clear rubble
+				MapLocation ahead = rc.getLocation().add(forward);
+				if(rc.senseRubble(ahead)>=GameConstants.RUBBLE_OBSTRUCTION_THRESH){
+					rc.clearRubble(forward);
+				}
 			}
 		}
-		if(currentMessage==null)
-			return;
-		MapLocation archonLocation = currentMessage.getLocation();
-		Direction archonDirection = Direction.values()[currentMessage.getMessage()[1]];
-		MapLocation goalLocation = archonLocation.add(archonDirection.dx*4,archonDirection.dy*4);
-		possibleDirections = rc.getLocation().directionTo(goalLocation);
+	}
+	private static MapLocation[] combineThings(RobotInfo[] visibleEnemyArray, Signal[] incomingSignals) {
+		ArrayList<MapLocation> attackableEnemyArray = new ArrayList<MapLocation>();
+		for(RobotInfo r:visibleEnemyArray){
+			attackableEnemyArray.add(r.location);
+		}
+		for(Signal s:incomingSignals){
+			if(s.getTeam()==rc.getTeam().opponent()){
+				MapLocation enemySignalLocation = s.getLocation();
+				int distanceToSignalingEnemy = rc.getLocation().distanceSquaredTo(enemySignalLocation);
+				if(distanceToSignalingEnemy<=rc.getType().attackRadiusSquared){
+					attackableEnemyArray.add(enemySignalLocation);
+				}
+			}
+		}
+		MapLocation[] finishedArray = new MapLocation[attackableEnemyArray.size()];
+		for(int i=0;i<attackableEnemyArray.size();i++){ 
+			finishedArray[i]=attackableEnemyArray.get(i);
+		}
+		return finishedArray;
+	}
+	private static void soldierCode() {
+		while(true){
+			try {
+				repeat();
+			} catch (GameActionException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	private static void archonCode() {
+    	while(true){
+    		try {
+    			if(rc.senseNearbyRobots().equals(rc.getTeam().opponent()) == true)
+    				runaway();
+				creationSpot(directions[2]);
+				if(rc.isCoreReady())
+				{if(rc.canMove(directions[2])){
+					rc.move(directions[2]);}
+				else
+					looking(directions[2]);
+				}
+			} catch (GameActionException e) {
+				e.printStackTrace();
+			}
+    	}
 		
 	}
-	private static void repeat() throws GameActionException{
-    	Team myTeam = rc.getTeam();
-        Team enemyTeam = myTeam.opponent();
+
+	private static void scoutCode() {	
+		while(true){
+			if(rc.isWeaponReady()){
+				try {
+					repeat();
+				} catch (GameActionException e) {
+					e.printStackTrace();
+				}}
+			} 		
+	}
+
+	private static void viperCode() {		
+		Team myTeam = rc.getTeam();
+		RobotInfo[] team = rc.senseNearbyRobots(rc.getType().attackRadiusSquared,myTeam);
+		while(true){
+		if(team.length > 0 && rc.getType().canInfect()){
+			if(rc.isWeaponReady()){
+				try {
+					//rc.attackLocation(team[0].location);
+					repeat();
+				} catch (GameActionException e) {
+					e.printStackTrace();
+				}}
+			} 
+		else
+			try {
+				repeat();
+			} catch (GameActionException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+	private static void runaway() { //code to have robot run away from all enemy troops/ currently broken
+		Team enemyTeam = rc.getTeam().opponent();
+		RobotInfo[] hostile = rc.senseNearbyRobots(rc.getType().attackRadiusSquared,enemyTeam );
+		rc.emptySignalQueue();
+		while(rc.senseNearbyRobots(rc.getType().attackRadiusSquared, enemyTeam) != null){
+			try {
+				if(rc.canSenseLocation(hostile[0].location) == true)
+				{
+					for(int i=0; i<8; i++){
+						if(rc.canMove(directions[i]))
+							rc.move(directions[i]);
+							Clock.getBytecodeNum();
+					}
+				}
+			} catch (GameActionException e) {
+				e.printStackTrace();
+			}
+		if(rc.getHealth() < 20)
+		{
+			try {
+				rc.repair(rc.getLocation());
+			} catch (GameActionException e) {
+				e.printStackTrace();
+			}
+		}
+		}
+		
+	}
+	private static void repeat() throws GameActionException{	
+		Team myTeam = rc.getTeam();
+	    Team enemyTeam = myTeam.opponent();
 		RobotInfo[] zombieEnemies = rc.senseNearbyRobots(rc.getType().attackRadiusSquared,Team.ZOMBIE);
 		RobotInfo[] enemy = rc.senseNearbyRobots(rc.getType().attackRadiusSquared,enemyTeam);
 		RobotInfo[] allEnemys = joinRobotInfo(zombieEnemies,enemy); 
-		
+		if(rc.getHealth()<20)
+			runaway();
 		if (allEnemys.length > 0 && rc.getType().canAttack())
 			{if(rc.isWeaponReady()){
-				rc.attackLocation(allEnemys[0].location);
+				double weakestSoFar = 0;
+				MapLocation weakestLocation = null;
+				for(RobotInfo r:allEnemys){
+					double weakness = r.maxHealth-r.health;
+					if(weakness>weakestSoFar){
+						rc.setIndicatorString(0, "Killing the weakest");
+						weakestLocation = r.location;
+						weakestSoFar=weakness;
+					}
+				}
+				if(weakestLocation != null)
+					rc.attackLocation(weakestLocation);
+				else
+					rc.attackLocation(allEnemys[0].location);
 			}
 		}
 		else
-		{if(rc.isCoreReady())
-			{if(rc.canMove(directions[2])){
-				rc.move(directions[2]);}
-			else
-				looking(directions[2]);
+		{if(rc.isCoreReady()){
+			MapLocation goal = allEnemys[0].location;
+			Direction toEnemy = rc.getLocation().directionTo(goal);
+			if(rc.canMove(toEnemy)){
+				rc.setIndicatorString(0,"moving to enemy");
+				rc.move(toEnemy);
+			}else{
+				MapLocation ahead = rc.getLocation().add(toEnemy);
+				if(rc.senseRubble(ahead)>=GameConstants.RUBBLE_OBSTRUCTION_THRESH){
+					rc.clearRubble(toEnemy);
+				}
 			}
+		}
 		}
 	}
 	private static void looking(Direction ahead) throws GameActionException{
 		for(int i:possibleMovements){
 			Direction candidateDirection = Direction.values()[(ahead.ordinal()+i+8)%8];
 			MapLocation candidateLocation = rc.getLocation().add(candidateDirection);
-			if(patient > 0){
-				if(rc.canMove(candidateDirection) && !pastLocations.contains(candidateLocation)){
-					pastLocations.add(rc.getLocation());
-					if(pastLocations.size()> 20)
-						pastLocations.remove(0);
+			if(rc.canMove(candidateDirection) && !pastLocations.contains(candidateLocation)){
+				pastLocations.add(rc.getLocation());
+				if(pastLocations.size()> 20){
+					pastLocations.remove(0);
 					rc.move(candidateDirection);
-					patient = Math.max(patient +1,30);
-					return;					
-				}
-			}else{
-				if(rc.canMove(candidateDirection)){
-					rc.move(candidateDirection);
-					return;
-				}else{//dig!
-					if(rc.senseRubble(candidateLocation)>GameConstants.RUBBLE_OBSTRUCTION_THRESH){
-						rc.clearRubble(candidateDirection);
-						return;
-					}
+					break;
 				}
 			}
 		}
-		patient = patient - 5;
 	}
 	private static RobotInfo[] joinRobotInfo(RobotInfo[] zombieEnemies, RobotInfo[] enemy) {
+		//join robot lists
 		RobotInfo[] enemyAll = new RobotInfo[zombieEnemies.length+enemy.length];
 		int index = 0;
 		for(RobotInfo i:zombieEnemies){
@@ -134,5 +268,105 @@ public class RobotPlayer {
 			index++;
 		}
 		return enemyAll;
+	}
+	private static void creationSpot(Direction ahead) throws GameActionException //find spot to build
+	{
+		Random rand = new Random(rc.getID());
+		int fate = rand.nextInt(1000);
+		if(rc.isCoreReady())
+		{
+			for(int i:possibleMovements){
+			if(rc.isCoreReady()){
+				Direction candidateDirection = Direction.values()[(ahead.ordinal()+i+8)%8];
+				MapLocation loc = rc.getLocation().add(candidateDirection);
+				if(rc.isLocationOccupied(loc) == false && rc.senseRubble(loc) < GameConstants.RUBBLE_OBSTRUCTION_THRESH){
+					if(rc.hasBuildRequirements(RobotType.TURRET)){rc.build(candidateDirection, RobotType.TURRET);}
+					else{rc.build(candidateDirection, robotTypes[fate%8]);}
+				}
+			}
+			}
+		}
+	}
+	private static void guardCode() throws GameActionException {
+		RobotInfo[] enemyArray = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared,Team.ZOMBIE);
+		if(enemyArray.length>0){
+			if(rc.isWeaponReady()){
+				//look for adjacent enemies to attack
+				for(RobotInfo oneEnemy:enemyArray){
+					if(rc.canAttackLocation(oneEnemy.location)){
+						rc.setIndicatorString(0,"trying to attack");
+						rc.attackLocation(oneEnemy.location);
+						break;
+					}
+				}
+			}
+			//could not find any enemies adjacent to attack
+			//try to move toward them
+			if(rc.isCoreReady()){
+				MapLocation goal = enemyArray[0].location;
+				Direction toEnemy = rc.getLocation().directionTo(goal);
+				if(rc.canMove(toEnemy)){
+					rc.setIndicatorString(0,"moving to enemy");
+					rc.move(toEnemy);
+				}else{
+					MapLocation ahead = rc.getLocation().add(toEnemy);
+					if(rc.senseRubble(ahead)>=GameConstants.RUBBLE_OBSTRUCTION_THRESH){
+						rc.clearRubble(toEnemy);
+					}
+				}
+			}
+		}
+	}
+	private static void turretCode() throws GameActionException {
+		RobotInfo[] visibleEnemyArray = rc.senseHostileRobots(rc.getLocation(), 1000000);
+		Signal[] incomingSignals = rc.emptySignalQueue();
+		MapLocation[] enemyArray = combineThings(visibleEnemyArray,incomingSignals);
+		
+		while(true){
+		if(enemyArray.length>0){
+			if(rc.isWeaponReady()){
+				//look for adjacent enemies to attack
+				for(MapLocation oneEnemy:enemyArray){
+					if(rc.canAttackLocation(oneEnemy)){
+						rc.setIndicatorString(0,"trying to attack");
+						rc.attackLocation(oneEnemy);
+						break;
+					}
+				}
+			}
+			//could not find any enemies adjacent to attack
+			//try to move toward them
+			if(rc.isCoreReady()){
+				MapLocation goal = enemyArray[0];
+				Direction toEnemy = rc.getLocation().directionTo(goal);
+				rc.pack();
+			}
+		}else{//there are no enemies nearby
+			//check to see if we are in the way of friends
+			//we are obstructing them
+			if(rc.isCoreReady()){
+				RobotInfo[] nearbyFriends = rc.senseNearbyRobots(2, rc.getTeam());
+				if(nearbyFriends.length>3){
+					Direction away = randomDirection();
+					rc.pack();
+				}
+			}
+		}
+		}
+	}
+	private static Direction randomDirection() {
+		return Direction.values()[(int)(rnd.nextDouble()*8)];
+	}
+	private static MapLocation findWeakest(RobotInfo[] listOfRobots){
+		double weakestSoFar = 0;
+		MapLocation weakestLocation = null;
+		for(RobotInfo r:listOfRobots){
+			double weakness = r.maxHealth-r.health;
+			if(weakness>weakestSoFar){
+				weakestLocation = r.location;
+				weakestSoFar=weakness;
+			}
+		}
+		return weakestLocation;
 	}
 }

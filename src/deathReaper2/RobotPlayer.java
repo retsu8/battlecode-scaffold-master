@@ -219,7 +219,10 @@ public class RobotPlayer {
 						weakestSoFar=weakness;
 					}
 				}
-				rc.attackLocation(weakestLocation);
+				if(weakestLocation != null)
+					rc.attackLocation(weakestLocation);
+				else
+					rc.attackLocation(allEnemys[0].location);
 			}
 		}
 		else
