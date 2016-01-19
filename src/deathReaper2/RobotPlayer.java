@@ -36,6 +36,7 @@ public class RobotPlayer {
 	        else if(rc.getType() == RobotType.TURRET){
 						turretCode();}
 	        else{ttmCode();}
+	        Clock.yield();
 	    }catch (GameActionException e) {
 			e.printStackTrace();
 		} }
@@ -97,9 +98,12 @@ public class RobotPlayer {
 				{if(rc.canMove(directions[2])){
 					rc.move(directions[2]);}
 				else{
-					tryToMove(directions[2]);
-					getParts(directions[2]);}
+					if(rc.canMove(tryToMove(directions[2]))){
+						rc.move(tryToMove(directions[2]));
+						getParts(directions[2]);}
+					}
 				}
+	    		Clock.yield();
 			} catch (GameActionException e) {
 				e.printStackTrace();
 			}
@@ -320,13 +324,12 @@ private static void guardCode() throws GameActionException {
 		}
 		return finishedArray;
 	}
-	public static void tryToMove(Direction forward) throws GameActionException{
+	public static Direction tryToMove(Direction forward) throws GameActionException{
 		if(rc.isCoreReady()){
 			for(int deltaD:possibleMovements){
 				Direction maybeForward = Direction.values()[(forward.ordinal()+deltaD+8)%8];
 				if(rc.canMove(maybeForward)){
-					rc.move(maybeForward);
-					return;
+					return maybeForward;
 				}
 			}
 			if(rc.getType().canClearRubble()){
@@ -337,6 +340,7 @@ private static void guardCode() throws GameActionException {
 				}
 			}
 		}
+		return forward;
 	}
 	private static RobotInfo[] joinRobotInfo(RobotInfo[] zombieEnemies, RobotInfo[] enemy) {
 		//join robot lists
