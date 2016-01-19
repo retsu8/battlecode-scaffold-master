@@ -78,6 +78,7 @@ public class RobotPlayer {
 		while(true){
 			try {
 				repeat();
+				Clock.yield();
 			} catch (GameActionException e) {
 				e.printStackTrace();
 			}
@@ -116,6 +117,7 @@ public class RobotPlayer {
 			if(rc.isWeaponReady()){
 				try {
 					repeat();
+					Clock.yield();
 				} catch (GameActionException e) {
 					e.printStackTrace();
 				}}
@@ -131,6 +133,7 @@ public class RobotPlayer {
 				try {
 					//rc.attackLocation(team[0].location);
 					repeat();
+					Clock.yield();
 				} catch (GameActionException e) {
 					e.printStackTrace();
 				}}
@@ -138,6 +141,7 @@ public class RobotPlayer {
 		else
 			try {
 				repeat();
+				Clock.yield();
 			} catch (GameActionException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
