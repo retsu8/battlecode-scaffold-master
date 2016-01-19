@@ -46,7 +46,8 @@ public class RobotPlayer {
 	        	soldierCode();}
 	        else if(rc.getType() == RobotType.TURRET){
 				turretCode();}
-	        else{ttmCode();}
+	        else if(rc.getType() == RobotType.TTM){
+	        	ttmCode();}
 	        Clock.yield();
 	    }catch (GameActionException e) {
 			e.printStackTrace();} 
@@ -87,8 +88,24 @@ public class RobotPlayer {
 	}
 	private static void soldierCode() throws GameActionException{
 		while(true){
-			repeat();
-			Clock.yield();
+			readInstructions();
+			RobotInfo[] nearbyEnemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared);
+			if (nearbyEnemies.length > 0) {
+				if (rc.isWeaponReady()) {
+					MapLocation toAttack = findWeakest(nearbyEnemies);
+					rc.attackLocation(toAttack);
+				}
+			}
+			if (rc.isCoreReady()) {
+				RobotInfo[] nearbyFriends = rc.senseNearbyRobots(2, rc.getTeam());
+				if(nearbyFriends.length>3){
+					Direction away = tryToMove(nearbyFriends[0].location.directionTo(rc.getLocation()));
+					rc.move(away);}						
+				MapLocation target = new MapLocation(archonX, archonY);
+				Direction dir = rc.getLocation().directionTo(target);
+				tryToMove(dir);
+			}
+		Clock.yield();
 		}
 	}
 	private static void archonCode() throws GameActionException{
@@ -155,9 +172,24 @@ public class RobotPlayer {
 		Team myTeam = rc.getTeam();
 		RobotInfo[] team = rc.senseNearbyRobots(rc.getType().attackRadiusSquared,myTeam);
 		while(true){
-		if(team.length > 0 && rc.getType().canInfect()){
-			repeat();
-			Clock.yield();}
+			if(team.length > 0 && rc.getType().canInfect()){
+			RobotInfo[] nearbyEnemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared);
+			if(rc.senseNearbyRobots().equals(RobotType.ARCHON))
+			{
+				if (nearbyEnemies.length > 0) {
+					if (rc.isWeaponReady()) {
+						MapLocation toAttack = findWeakest(nearbyEnemies);
+						rc.attackLocation(toAttack);
+					}
+					return;
+				}
+				if (rc.isCoreReady()) {
+					MapLocation target = new MapLocation(archonX *5, archonY*5);
+					Direction dir = rc.getLocation().directionTo(target);
+					rc.move(tryToMove(dir));
+				}
+			}
+		Clock.yield();}
 		}
 	}
 	private static void runaway() throws GameActionException{ //code to have robot run away from all enemy troops/ currently broken
@@ -169,24 +201,6 @@ public class RobotPlayer {
 			tryToMove(away);
 		} else {
 			tryToMove(dir);
-		}
-	}
-	private static void repeat() throws GameActionException{			
-		RobotInfo[] nearbyEnemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared);
-		if(rc.senseNearbyRobots().equals(RobotType.ARCHON))
-		{
-			if (nearbyEnemies.length > 0) {
-				if (rc.isWeaponReady()) {
-					MapLocation toAttack = findWeakest(nearbyEnemies);
-					rc.attackLocation(toAttack);
-				}
-				return;
-			}
-			if (rc.isCoreReady()) {
-				MapLocation target = new MapLocation(archonX *5, archonY*5);
-				Direction dir = rc.getLocation().directionTo(target);
-				rc.move(tryToMove(dir));
-			}
 		}
 	}
 private static void guardCode() throws GameActionException {
@@ -249,7 +263,7 @@ private static void guardCode() throws GameActionException {
 				if(rc.isCoreReady()){
 					RobotInfo[] nearbyFriends = rc.senseNearbyRobots(2, rc.getTeam());
 					if(nearbyFriends.length>3){
-						Direction away = randomDirection();
+						Direction away = tryToMove(nearbyFriends[0].location.directionTo(rc.getLocation()));
 						rc.pack();
 					}
 				}
@@ -296,9 +310,6 @@ private static void guardCode() throws GameActionException {
 		for(int deltaD:possibleMovements){
 			Direction maybeForward = Direction.values()[(forward.ordinal()+deltaD+8)%8];
 			if(rc.canMove(maybeForward) && !pastLocations.contains(maybeForward)){
-				pastLocations.add(rc.getLocation());
-				if(pastLocations.size()>10)
-					pastLocations.remove(0);
 				return maybeForward;
 			}
 		}
