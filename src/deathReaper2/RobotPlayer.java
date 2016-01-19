@@ -135,10 +135,12 @@ public class RobotPlayer {
 			}
 		}
 	}
-	private static void getParts(Direction directions){
+	private static void getParts(Direction directions) throws GameActionException{
 		if(parts.length != 0){
 			MapLocation[] partsLocation = MapLocation.getAllMapLocationsWithinRadiusSq(rc.getLocation(), rc.getType().attackRadiusSquared);
-			if(rc.canSense()
+			if(rc.canMove(partsLocation[0].directionTo(rc.getLocation()))){
+					rc.move(partsLocation[0].directionTo(rc.getLocation()));
+				}
 		}
 	}
 	private static void runaway() throws GameActionException{ //code to have robot run away from all enemy troops/ currently broken
