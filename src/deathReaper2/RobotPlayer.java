@@ -49,7 +49,7 @@ public class RobotPlayer {
 	        else if(rc.getType() == RobotType.TTM){
 	        	ttmCode();}
 	        Clock.yield();
-	    }catch (GameActionException e) {
+	    }catch (Exception e) {
 			e.printStackTrace();} 
 		}
 	}    
@@ -138,7 +138,7 @@ public class RobotPlayer {
 		Clock.yield();	
 		}
 	static int turnsLeft = 0; // number of turns to move in scoutDirection
-	static Direction scoutDirection = null; // random direction
+	static Direction scoutDirection = Direction.NONE; // random direction
 	private static void pickNewDirection() throws GameActionException {
 		scoutDirection = randomDirection();
 		turnsLeft = 100;
@@ -192,27 +192,31 @@ public class RobotPlayer {
 		Clock.yield();}
 		}
 	}
+	@SuppressWarnings("static-access")
 	private static void runaway() throws GameActionException{ //code to have robot run away from all enemy troops
 		RobotInfo[] enemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared);
-		MapLocation toClose = closestEnemy(enemies);
+		MapLocation toClose = closestRobot(enemies);
 		Direction away = rc.getLocation().directionTo(toClose).opposite();
 		rc.move(tryToMove(away));
 		}
-private static MapLocation closestEnemy(RobotInfo[] enemies) throws GameActionException{
+private static MapLocation closestRobot(RobotInfo[] robot) throws GameActionException{
 		double nearSoFar = -100;
-		MapLocation nearestEnemy = null;
-			for(RobotInfo r:enemies)
+		MapLocation nearestRobot = null;
+			for(RobotInfo r:robot)
 			{
-				int near = r.location.distanceSquaredTo(rc.getLocation());
-				if(near> nearSoFar){
-					nearestEnemy=r.location;
-					nearSoFar = near;
+				if(r.type != rc.getType().SCOUT){
+					int near = r.location.distanceSquaredTo(rc.getLocation());
+					if(near> nearSoFar){
+						nearestRobot=r.location;
+						nearSoFar = near;
+					}
 				}
 			}
-		return nearestEnemy;
+		return nearestRobot;
 		}
 private static void guardCode() throws GameActionException {
-		RobotInfo[] enemyArray = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared,Team.ZOMBIE);
+	RobotInfo[] enemyArray = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared,Team.ZOMBIE);
+	RobotInfo[] friends = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared,rc.getTeam());
 		if(enemyArray.length>0){
 			if(rc.isWeaponReady()){
 				//look for adjacent enemies to attack
@@ -239,6 +243,21 @@ private static void guardCode() throws GameActionException {
 					}
 				}
 			}
+		}else{
+			int nearSoFar = -100;
+			MapLocation nearestArchon = null;
+			for(RobotInfo r:friends)
+			{
+				if(r.type == rc.getType().ARCHON){
+					int near = r.location.distanceSquaredTo(rc.getLocation());
+					if(near> nearSoFar){
+						nearestArchon = r.location;
+						nearSoFar = near;
+					}
+				}
+			}
+			rc.move(tryToMove(nearestArchon.directionTo(rc.getLocation())));
+				
 		}
 	}
 	private static void turretCode() throws GameActionException {
@@ -260,12 +279,11 @@ private static void guardCode() throws GameActionException {
 				}
 				//could not find any enemies adjacent to attack
 				//try to move toward them
-				if(rc.isCoreReady()){
+				/*if(rc.isCoreReady()){
 					MapLocation goal = enemyArray[0];
 					Direction toEnemy = rc.getLocation().directionTo(goal);
 					rc.pack();
-					rc.move(toEnemy);
-				}
+				}*/
 			}else{//there are no enemies nearby
 				//check to see if we are in the way of friends
 				//we are obstructing them
@@ -273,8 +291,7 @@ private static void guardCode() throws GameActionException {
 					RobotInfo[] nearbyFriends = rc.senseNearbyRobots(2, rc.getTeam());
 					if(nearbyFriends.length>3){
 						Direction away = tryToMove(nearbyFriends[0].location.directionTo(rc.getLocation()));
-						rc.pack();
-						rc.move(away);
+						//rc.pack();
 					}
 				}
 				Clock.yield();
