@@ -71,7 +71,7 @@ public class RobotPlayer {
             //check to see if we are in the way of friends
             //we are obstructing them
             if(rc.isCoreReady()){
-                RobotInfo[] nearbyFriends = rc.senseNearbyRobots(2, rc.getTeam());
+                RobotInfo[] nearbyFriends = rc.senseNearbyRobots(4, rc.getTeam());
                 if(nearbyFriends.length>3){
                     Direction away = randomDirection();
                     tryToMove(away);
@@ -89,22 +89,35 @@ public class RobotPlayer {
     }
     private static void soldierCode() throws GameActionException{
         while(true){
+            int nearSoFar = -100;
+            MapLocation nearestRobot = null;
             readInstructions();
             RobotInfo[] nearbyEnemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared/2);
             if (nearbyEnemies.length > 0) {
                 if (rc.isWeaponReady()) {
-                    MapLocation toAttack = findWeakest(nearbyEnemies);
-                    rc.attackLocation(toAttack);
+                    rc.attackLocation(findWeakest(nearbyEnemies));
                 }
-            }
-            else if (rc.isCoreReady()) {
+            }else if (rc.isCoreReady()) {
                 RobotInfo[] nearbyFriends = rc.senseNearbyRobots(2, rc.getTeam());
                 if(nearbyFriends.length>3){
-                    Direction away = tryToMove(nearbyFriends[0].location.directionTo(rc.getLocation()));
-                    rc.move(away);}
-                MapLocation target = new MapLocation(archonX, archonY);
-                Direction dir = rc.getLocation().directionTo(target);
-                rc.move(tryToMove(dir));
+                    Direction helpingFriend = tryToMove(closestRobot(nearbyFriends).directionTo(rc.getLocation()));
+                    rc.move(tryToMove(helpingFriend));
+                    }
+                else{
+	                RobotInfo[] target = rc.senseNearbyRobots(rc.getType().attackRadiusSquared, rc.getTeam());
+	                for(RobotInfo r:target)
+	                {
+	                    if(r.type == RobotType.ARCHON){
+	                        int near = r.location.distanceSquaredTo(rc.getLocation());
+							if(near> nearSoFar){
+	                            nearestRobot = r.location;
+	                            nearSoFar = near;
+	                        }
+	                    }
+	                }
+	                Direction dir = rc.getLocation().directionTo(nearestRobot);
+	                rc.move(tryToMove(dir));
+	                }
             }
             Clock.yield();
         }
@@ -196,9 +209,8 @@ public class RobotPlayer {
                         return;
                     }
                     if (rc.isCoreReady()) {
-                        MapLocation target = new MapLocation(archonX *5, archonY*5);
-                        Direction dir = rc.getLocation().directionTo(target);
-                        rc.move(tryToMove(dir));
+                        RobotInfo[] target = rc.senseHostileRobots(rc.getLocation(), infinity);
+                        rc.move(tryToMove(rc.getLocation().directionTo(closestRobot(target))));
                     }
                 }
                 Clock.yield();}
@@ -216,13 +228,11 @@ public class RobotPlayer {
         MapLocation nearestRobot = null;
         for(RobotInfo r:robot)
         {
-            if(r.type != rc.getType().SCOUT){
-                int near = r.location.distanceSquaredTo(rc.getLocation());
-                if(near> nearSoFar){
-                    nearestRobot=r.location;
-                    nearSoFar = near;
+            int near = r.location.distanceSquaredTo(rc.getLocation());
+            if(near> nearSoFar){
+                nearestRobot=r.location;
+                nearSoFar = near;
                 }
-            }
         }
         return nearestRobot;
     }
@@ -254,22 +264,20 @@ public class RobotPlayer {
                         rc.clearRubble(toEnemy);
                     }
                 }
-            }
-        }else{
+            }else{
             int nearSoFar = -100;
             MapLocation nearestArchon = null;
             for(RobotInfo r:friends)
             {
-                if(r.type == rc.getType().ARCHON){
+                if(r.type == RobotType.ARCHON){
                     int near = r.location.distanceSquaredTo(rc.getLocation());
                     if(near> nearSoFar){
                         nearestArchon = r.location;
                         nearSoFar = near;
                     }
                 }
-            }
-            rc.move(tryToMove(nearestArchon.directionTo(rc.getLocation())));
-
+            } rc.move(tryToMove(nearestArchon.directionTo(rc.getLocation())));
+        }
         }
     }
     private static void turretCode() throws GameActionException {
