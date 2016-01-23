@@ -89,8 +89,6 @@ public class RobotPlayer {
     }
     private static void soldierCode() throws GameActionException{
         while(true){
-            int nearSoFar = -100;
-            MapLocation nearestRobot = null;
             readInstructions();
             RobotInfo[] nearbyEnemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared/2);
             if (nearbyEnemies.length > 0) {
@@ -105,20 +103,9 @@ public class RobotPlayer {
                     }
                 else{
 	                RobotInfo[] target = rc.senseNearbyRobots(rc.getType().attackRadiusSquared, rc.getTeam());
-	                for(RobotInfo r:target)
-	                {
-	                    if(r.type == RobotType.ARCHON){
-	                        int near = r.location.distanceSquaredTo(rc.getLocation());
-							if(near> nearSoFar){
-	                            nearestRobot = r.location;
-	                            nearSoFar = near;
-	                        }
-	                    }
-	                }
-	                Direction dir = rc.getLocation().directionTo(nearestRobot);
-	                rc.move(tryToMove(dir));
-	                }
-            }
+	               rc.move(tryToMove(rc.getLocation().directionTo(closestRobot(target, RobotType.ARCHON))));
+              }
+             }
             Clock.yield();
         }
     }
@@ -130,21 +117,21 @@ public class RobotPlayer {
 		RobotInfo[] neutral = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared,Team.NEUTRAL);
 		MapLocation target = new MapLocation(targetX, targetY);
 		Direction dir = rc.getLocation().directionTo(target);			
-		RobotInfo[] enemies = rc.senseHostileRobots(rc.getLocation(), infinity);
+		RobotInfo[] enemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared);
 		leaderElection();
 		readInstructions();
 		if(leader && rc.getID() == 0)
 			sendInstructions();		
 		if (rc.isCoreReady()) {
-			if(rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared).length > 0)
+			if(enemies.length > 0)
 				runaway();
-			if(neutral.length > 0){
+			else if(neutral.length > 0){
 				if(rc.canMove(rc.getLocation().directionTo(neutral[0].location))){
 					rc.move(tryToMove(rc.getLocation().directionTo(neutral[0].location)));
 				}else
 					rc.activate(neutral[0].location);
 			}
-			if(parts.length > 0){
+			else if(parts.length > 0){
 				if(rc.canMove(rc.getLocation().directionTo(parts[0]))){
 					rc.move(tryToMove(rc.getLocation().directionTo(parts[0])));
 				}
@@ -153,12 +140,8 @@ public class RobotPlayer {
 				creationSpot(directions[2], RobotType.GUARD); }
 			else if(rc.canBuild(tryToMove(directions[2]), robot)){
 				creationSpot(directions[2], robot);}	
-			if (enemies.length > 0) {
-				Direction away = rc.getLocation().directionTo(enemies[0].location).opposite();
-				rc.move(tryToMove(away));
 			} else {
 				rc.move(tryToMove(dir));
-				}
 			}
 		Clock.yield();	
 		}
@@ -217,22 +200,36 @@ public class RobotPlayer {
         }
     }
     @SuppressWarnings("static-access")
-    private static void runaway() throws GameActionException{ //code to have robot run away from all enemy troops
+    private static void runaway() throws GameActionException{ //code to have robot run away from all enemy troops Run cost = 141
         RobotInfo[] enemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared);
-        MapLocation toClose = closestRobot(enemies);
+		MapLocation toClose = closestRobot(enemies);
         Direction away = rc.getLocation().directionTo(toClose).opposite();
         rc.move(tryToMove(away));
     }
-    private static MapLocation closestRobot(RobotInfo[] robot) throws GameActionException{
+    private static MapLocation closestRobot(RobotInfo[] robot) throws GameActionException{ //Run rotation cost once = 12
         double nearSoFar = -100;
         MapLocation nearestRobot = null;
-        for(RobotInfo r:robot)
-        {
+        for(RobotInfo r:robot) {
             int near = r.location.distanceSquaredTo(rc.getLocation());
             if(near> nearSoFar){
                 nearestRobot=r.location;
                 nearSoFar = near;
+        	}
+        }
+        return nearestRobot;
+    }
+    private static MapLocation closestRobot(RobotInfo[] robot, RobotType findRobot) throws GameActionException{
+        double nearSoFar = -100;
+        MapLocation nearestRobot = null;
+        for(RobotInfo r:robot)
+        {
+        	if(r.type == findRobot){
+	            int near = r.location.distanceSquaredTo(rc.getLocation());
+	            if(near> nearSoFar){
+	                nearestRobot=r.location;
+	                nearSoFar = near;
                 }
+        	}
         }
         return nearestRobot;
     }
@@ -350,7 +347,7 @@ public class RobotPlayer {
         }
         return finishedArray;
     }
-    public static Direction tryToMove(Direction forward) throws GameActionException{
+    public static Direction tryToMove(Direction forward) throws GameActionException{ //Works to get location able to move to Run cost is = 16
         for(int deltaD:possibleMovements){
             Direction maybeForward = Direction.values()[(forward.ordinal()+deltaD+8)%8];
             if(rc.canMove(maybeForward) && !pastLocations.contains(maybeForward)){
@@ -386,7 +383,7 @@ public class RobotPlayer {
         }
     }
     private static void leaderElection() throws GameActionException {
-        if (rc.getRoundNum() % 100 == 0) {
+        if (rc.getRoundNum()  == 0) {
             // First step: elect a leader archon
             if (rc.getType() == RobotType.ARCHON) {
                 rc.broadcastMessageSignal(ELECTION, 0, infinity);
