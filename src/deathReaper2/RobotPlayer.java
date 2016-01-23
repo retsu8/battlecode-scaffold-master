@@ -33,8 +33,8 @@ public class RobotPlayer {
     public static void run(RobotController rcIN) {
         rc =rcIN;
         while(true){
-            try {
-                if(rc.getType() == RobotType.ARCHON){
+        	try {
+        		if(rc.getType() == RobotType.ARCHON){
                     archonCode();}
                 else if(rc.getType() == RobotType.VIPER){
                     viperCode();}
@@ -123,19 +123,19 @@ public class RobotPlayer {
 		if(leader && rc.getID() == 0)
 			sendInstructions();		
 		if (rc.isCoreReady()) {
+			if(rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared).length > 0)
+				runaway();
 			if(neutral.length > 0){
 				if(rc.canMove(rc.getLocation().directionTo(neutral[0].location))){
 					rc.move(tryToMove(rc.getLocation().directionTo(neutral[0].location)));
 				}else
 					rc.activate(neutral[0].location);
 			}
-			if(neutral.length > 0){
+			if(parts.length > 0){
 				if(rc.canMove(rc.getLocation().directionTo(parts[0]))){
 					rc.move(tryToMove(rc.getLocation().directionTo(parts[0])));
 				}
 			}
-			if(rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared).length > 0)
-				runaway();
 			if(rc.getRoundNum()<20){
 				creationSpot(directions[2], RobotType.GUARD); }
 			else if(rc.canBuild(tryToMove(directions[2]), robot)){
