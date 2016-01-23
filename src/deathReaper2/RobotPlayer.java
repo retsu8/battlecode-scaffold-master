@@ -110,33 +110,45 @@ public class RobotPlayer {
         }
     }
     private static void archonCode() throws GameActionException{
-        Random rand = new Random(rc.getID());
-        int fate = rand.nextInt(1000)*rc.getRobotCount();
-        RobotType robot = robotTypes[fate%8];
-        leaderElection();
-        readInstructions();
-        if(leader && rc.getID() == 0)
-            sendInstructions();
-        if (rc.isCoreReady()) {
-            if(rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared).length > 0)
-                runaway();
-            if(rc.getRoundNum()<20){
-                creationSpot(directions[2], RobotType.GUARD); }
-            else if(rc.canBuild(tryToMove(directions[2]), robot)){
-                creationSpot(directions[2], robot);}
-
-            MapLocation target = new MapLocation(targetX, targetY);
-            Direction dir = rc.getLocation().directionTo(target);
-            RobotInfo[] enemies = rc.senseHostileRobots(rc.getLocation(), infinity);
-            if (enemies.length > 0) {
-                Direction away = rc.getLocation().directionTo(enemies[0].location).opposite();
-                rc.move(tryToMove(away));
-            } else {
-                rc.move(tryToMove(dir));
-            }
-        }
-        Clock.yield();
-    }
+		Random rand = new Random(rc.getID());
+		int fate = rand.nextInt(1000)*rc.getRobotCount();
+		RobotType robot = robotTypes[fate%8];
+		MapLocation[] parts = rc.sensePartLocations(rc.getType().attackRadiusSquared);
+		RobotInfo[] neutral = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared,Team.NEUTRAL);
+		MapLocation target = new MapLocation(targetX, targetY);
+		Direction dir = rc.getLocation().directionTo(target);			
+		RobotInfo[] enemies = rc.senseHostileRobots(rc.getLocation(), infinity);
+		leaderElection();
+		readInstructions();
+		if(leader && rc.getID() == 0)
+			sendInstructions();		
+		if (rc.isCoreReady()) {
+			if(neutral.length > 0){
+				if(rc.canMove(rc.getLocation().directionTo(neutral[0].location))){
+					rc.move(tryToMove(rc.getLocation().directionTo(neutral[0].location)));
+				}else
+					rc.activate(neutral[0].location);
+			}
+			if(neutral.length > 0){
+				if(rc.canMove(rc.getLocation().directionTo(parts[0]))){
+					rc.move(tryToMove(rc.getLocation().directionTo(parts[0])));
+				}
+			}
+			if(rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared).length > 0)
+				runaway();
+			if(rc.getRoundNum()<20){
+				creationSpot(directions[2], RobotType.GUARD); }
+			else if(rc.canBuild(tryToMove(directions[2]), robot)){
+				creationSpot(directions[2], robot);}	
+			if (enemies.length > 0) {
+				Direction away = rc.getLocation().directionTo(enemies[0].location).opposite();
+				rc.move(tryToMove(away));
+			} else {
+				rc.move(tryToMove(dir));
+				}
+			}
+		Clock.yield();	
+		}
     static int turnsLeft = 0; // number of turns to move in scoutDirection
     static Direction scoutDirection = Direction.NONE; // random direction
     private static void pickNewDirection() throws GameActionException {
