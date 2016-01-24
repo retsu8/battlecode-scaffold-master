@@ -116,12 +116,12 @@ public class RobotPlayer {
 		MapLocation[] parts = rc.sensePartLocations(rc.getType().attackRadiusSquared);
 		RobotInfo[] neutral = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared,Team.NEUTRAL);
 		MapLocation target = new MapLocation(targetX, targetY);
-		Direction dir = rc.getLocation().directionTo(target);			
+		Direction dir = rc.getLocation().directionTo(target);
 		RobotInfo[] enemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared);
 		leaderElection();
 		readInstructions();
 		if(leader && rc.getID() == 0)
-			sendInstructions();		
+			sendInstructions();
 		if (rc.isCoreReady()) {
 			if(enemies.length > 0)
 				runaway();
@@ -139,11 +139,11 @@ public class RobotPlayer {
 			if(rc.getRoundNum()<20){
 				creationSpot(directions[2], RobotType.GUARD); }
 			else if(rc.canBuild(tryToMove(directions[2]), robot)){
-				creationSpot(directions[2], robot);}	
+				creationSpot(directions[2], robot);}
 			} else {
 				rc.move(tryToMove(dir));
 			}
-		Clock.yield();	
+		Clock.yield();
 		}
     static int turnsLeft = 0; // number of turns to move in scoutDirection
     static Direction scoutDirection = Direction.NONE; // random direction
