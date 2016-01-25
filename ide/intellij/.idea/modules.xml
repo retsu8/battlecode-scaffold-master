@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Battlecode/Battlecode.iml" filepath="$PROJECT_DIR$/Battlecode/Battlecode.iml" />
+      <module fileurl="file://$PROJECT_DIR$/intellij.iml" filepath="$PROJECT_DIR$/intellij.iml" />
     </modules>
   </component>
 </project>
