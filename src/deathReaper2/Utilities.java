@@ -7,12 +7,42 @@ import battlecode.common.Direction;
 import battlecode.common.GameActionException;
 import battlecode.common.GameConstants;
 import battlecode.common.MapLocation;
+import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
 import battlecode.common.RobotType;
 import battlecode.common.Signal;
 
+
 public class Utilities {
-	 private static void runaway() throws GameActionException{ //code to have robot run away from all enemy troops Run cost = 141
+	static RobotController rc;    
+	static Random rnd;
+    static Direction[] directions = {Direction.NORTH, Direction.NORTH_EAST, Direction.EAST, Direction.SOUTH_EAST,
+            Direction.SOUTH, Direction.SOUTH_WEST, Direction.WEST, Direction.NORTH_WEST};
+    static RobotType[] robotTypes = {RobotType.GUARD, RobotType.SCOUT, RobotType.SOLDIER, RobotType.SOLDIER,
+            RobotType.SOLDIER, RobotType.SOLDIER, RobotType.TURRET, RobotType.TURRET};
+    static int[] possibleMovements = new int[]{0,1,-1,2,-2,3,-3,4};
+    static int FOUND_ARCHON_X = 756736;
+    static int FOUND_ARCHON_Y = 256253;
+    static ArrayList<MapLocation> pastLocations = new ArrayList<MapLocation>();
+    static boolean leader = false;
+    public static int ELECTION = 73646;
+    public static int infinity = 1000;
+    static int archonX = -1;
+    static int archonY = -1;
+    static boolean archonFound = false;
+    static int scoutNum = 0;
+    static int targetX = -1;
+    static int targetY = -1;
+    static int MOVE_X = 182632;
+    static int MOVE_Y = 1827371;
+	static int turnsLeft = 0; 
+    static Direction direction = null;
+    static Direction pickNewDirection() throws GameActionException {
+        Direction scoutDirection = Utilities.randomDirection();
+        int turnsLeft = 100;
+        return scoutDirection;
+    }    
+	 static void runaway() throws GameActionException{ //code to have robot run away from all enemy troops Run cost = 141
 	        RobotInfo[] enemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared);
 	        RobotInfo[] friends = rc.senseNearbyRobots(rc.getLocation(), rc.getType().attackRadiusSquared, rc.getTeam());
 			MapLocation toClose = closestRobot(enemies);
@@ -23,7 +53,7 @@ public class Utilities {
 				rc.move(tryToMove(rc.getLocation().directionTo(archon)));
 			}
 	    }
-	    private static MapLocation closestRobot(RobotInfo[] robot) throws GameActionException{ //Run rotation cost once = 12
+	    static MapLocation closestRobot(RobotInfo[] robot) throws GameActionException{ //Run rotation cost once = 12
 	        double nearSoFar = -100;
 	        MapLocation nearestRobot = null;
 	        for(RobotInfo r:robot) {
@@ -35,7 +65,7 @@ public class Utilities {
 	        }
 	        return nearestRobot;
 	    }
-	    private static MapLocation closestRobot(RobotInfo[] robot, RobotType findRobot) throws GameActionException{
+	    static MapLocation closestRobot(RobotInfo[] robot, RobotType findRobot) throws GameActionException{
 	        double nearSoFar = -100;
 	        MapLocation nearestRobot = null;
 	        for(RobotInfo r:robot)
@@ -50,12 +80,12 @@ public class Utilities {
 	        }
 	        return nearestRobot;
 	    }
-	    private static Direction randomDirection() throws GameActionException{
+	    static Direction randomDirection() throws GameActionException{
 	    	Random rand = new Random(rc.getID());
 			int fate = rand.nextInt(1000)*rc.getRobotCount();
 	        return directions[fate%8];
 	    }
-	    private static MapLocation findWeakest(RobotInfo[] listOfRobots){
+	    static MapLocation findWeakest(RobotInfo[] listOfRobots){
 	        double weakestSoFar = -100;
 	        MapLocation weakestLocation = null;
 	        for(RobotInfo r:listOfRobots){
@@ -67,7 +97,7 @@ public class Utilities {
 	        }
 	        return weakestLocation;
 	    }
-	    private static MapLocation[] combineThings(RobotInfo[] visibleEnemyArray, Signal[] incomingSignals) {
+	    static MapLocation[] combineThings(RobotInfo[] visibleEnemyArray, Signal[] incomingSignals) {
 	        ArrayList<MapLocation> attackableEnemyArray = new ArrayList<MapLocation>();
 	        for(RobotInfo r:visibleEnemyArray){
 	            attackableEnemyArray.add(r.location);
@@ -150,7 +180,7 @@ public class Utilities {
 	            }
 	        }
 	    }
-	    private static void sendInstructions(MapLocation enemy) throws GameActionException {
+	    static void sendInstructions(MapLocation enemy) throws GameActionException {
 	        // Possible improvement: stop sending the same message over and over again
 	        // since it will just increase our delay.
 	        MapLocation loc = rc.getLocation();
