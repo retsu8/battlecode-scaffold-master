@@ -3,24 +3,16 @@ package deathReaper2;
 import java.util.ArrayList;
 import java.util.Random;
 
-import battlecode.common.Direction;
-import battlecode.common.GameActionException;
-import battlecode.common.GameConstants;
-import battlecode.common.MapLocation;
-import battlecode.common.RobotController;
-import battlecode.common.RobotInfo;
-import battlecode.common.RobotType;
-import battlecode.common.Signal;
+import battlecode.common.*;
 
 
 public class Utilities {
-	static RobotController rc;    
 	static Random rnd;
     static Direction[] directions = {Direction.NORTH, Direction.NORTH_EAST, Direction.EAST, Direction.SOUTH_EAST,
             Direction.SOUTH, Direction.SOUTH_WEST, Direction.WEST, Direction.NORTH_WEST};
     static RobotType[] robotTypes = {RobotType.GUARD, RobotType.SCOUT, RobotType.SOLDIER, RobotType.SOLDIER,
             RobotType.SOLDIER, RobotType.SOLDIER, RobotType.TURRET, RobotType.TURRET};
-    static int[] possibleMovements = new int[]{0,1,-1,2,-2,3,-3,4};
+    static int[] possibleMovements = new int[]{0,1,2,3,4,5,6,7};
     static int FOUND_ARCHON_X = 756736;
     static int FOUND_ARCHON_Y = 256253;
     static ArrayList<MapLocation> pastLocations = new ArrayList<MapLocation>();
@@ -37,23 +29,23 @@ public class Utilities {
     static int MOVE_Y = 1827371;
 	static int turnsLeft = 0; 
     static Direction direction = null;
-    static Direction pickNewDirection() throws GameActionException {
-        Direction scoutDirection = Utilities.randomDirection();
+    static Direction pickNewDirection(RobotController rc) throws GameActionException {
+        Direction scoutDirection = Utilities.randomDirection(rc);
         int turnsLeft = 100;
         return scoutDirection;
     }    
-	 static void runaway() throws GameActionException{ //code to have robot run away from all enemy troops Run cost = 141
+	 static void runaway(RobotController rc) throws GameActionException{ //code to have robot run away from all enemy troops Run cost = 141
 	        RobotInfo[] enemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().attackRadiusSquared);
 	        RobotInfo[] friends = rc.senseNearbyRobots(rc.getLocation(), rc.getType().attackRadiusSquared, rc.getTeam());
-			MapLocation toClose = closestRobot(enemies);
+			MapLocation toClose = closestRobot(rc, enemies);
 			if(rc.getHealth()>20)
-				rc.move(tryToMove(rc.getLocation().directionTo(toClose).opposite()));
+				rc.move(tryToMove(rc, rc.getLocation().directionTo(toClose).opposite()));
 			else{
 				MapLocation archon = new MapLocation(FOUND_ARCHON_X, FOUND_ARCHON_Y);
-				rc.move(tryToMove(rc.getLocation().directionTo(archon)));
+				rc.move(tryToMove(rc, rc.getLocation().directionTo(archon)));
 			}
 	    }
-	    static MapLocation closestRobot(RobotInfo[] robot) throws GameActionException{ //Run rotation cost once = 12
+	    static MapLocation closestRobot(RobotController rc, RobotInfo[] robot) throws GameActionException{ //Run rotation cost once = 12
 	        double nearSoFar = -100;
 	        MapLocation nearestRobot = null;
 	        for(RobotInfo r:robot) {
@@ -65,7 +57,7 @@ public class Utilities {
 	        }
 	        return nearestRobot;
 	    }
-	    static MapLocation closestRobot(RobotInfo[] robot, RobotType findRobot) throws GameActionException{
+	    static MapLocation closestRobot(RobotController rc, RobotInfo[] robot, RobotType findRobot) throws GameActionException{
 	        double nearSoFar = -100;
 	        MapLocation nearestRobot = null;
 	        for(RobotInfo r:robot)
@@ -80,7 +72,7 @@ public class Utilities {
 	        }
 	        return nearestRobot;
 	    }
-	    static Direction randomDirection() throws GameActionException{
+	    static Direction randomDirection(RobotController rc) throws GameActionException{
 	    	Random rand = new Random(rc.getID());
 			int fate = rand.nextInt(1000)*rc.getRobotCount();
 	        return directions[fate%8];
@@ -97,7 +89,7 @@ public class Utilities {
 	        }
 	        return weakestLocation;
 	    }
-	    static MapLocation[] combineThings(RobotInfo[] visibleEnemyArray, Signal[] incomingSignals) {
+	    static MapLocation[] combineThings(RobotController rc, RobotInfo[] visibleEnemyArray, Signal[] incomingSignals) {
 	        ArrayList<MapLocation> attackableEnemyArray = new ArrayList<MapLocation>();
 	        for(RobotInfo r:visibleEnemyArray){
 	            attackableEnemyArray.add(r.location);
@@ -117,7 +109,7 @@ public class Utilities {
 	        }
 	        return finishedArray;
 	    }
-	    public static Direction tryToMove(Direction forward) throws GameActionException{ //Works to get location able to move to Run cost is = 16
+	    public static Direction tryToMove(RobotController rc, Direction forward) throws GameActionException{ //Works to get location able to move to Run cost is = 16
 	    	MapLocation ahead = rc.getLocation().add(forward);
 	        for(int deltaD:possibleMovements){
 	            Direction maybeForward = directions[(forward.ordinal()+deltaD+8)%8];
@@ -134,29 +126,41 @@ public class Utilities {
 	        }
 			return forward;
 	    }
-	    private static void creationSpot(Direction ahead, RobotType robot) throws GameActionException //find spot to build
+	    public static void creationSpot(RobotController rc, Direction ahead, RobotType robot, RobotInfo[] enemies) throws GameActionException //find spot to build
 	    {
 	        Direction candidateDirection = ahead;
 	        MapLocation loc = rc.getLocation();
+	        int zombie = 0;
+			int opponent = 0;
 	        if(rc.isCoreReady())
 	        {
-	        	if(robot == RobotType.SCOUT && scoutNum <= 4){
-	        		scoutNum++;}
-	        	else if (robot == RobotType.SCOUT) {robot = RobotType.SOLDIER;}
-	            for(int i:possibleMovements){
-	                if(rc.isCoreReady()){
+	        	for(RobotInfo r: enemies){
+	        		if(r.team == Team.ZOMBIE){	        			
+						zombie++;
+	        		}
+	        		if(r.team == rc.getTeam().opponent()){
+						opponent++;
+	        		}
+	        		if(zombie > 2 && r.type == RobotType.ZOMBIEDEN){
+	        			robot = RobotType.GUARD; break;}
+	        		else if(robot == RobotType.SCOUT && scoutNum <= 3){
+		        		scoutNum++;}
+		        	else if (robot == RobotType.SCOUT) {robot = RobotType.SOLDIER; break;}
+		        }
+	        	for(int i:possibleMovements){
+	            	 if(rc.isCoreReady()){
 	                    candidateDirection = directions[i];
 	                    loc = rc.getLocation().add(candidateDirection);
 	                    if(rc.isLocationOccupied(loc) == false && rc.senseRubble(loc) < GameConstants.RUBBLE_OBSTRUCTION_THRESH){
 	                        if(rc.canBuild(candidateDirection, robot)){
 	                            rc.build(candidateDirection, robot);}
-	                        break;
-	                    }
-	                }
-	            }
+	                        	break;
+	                    	}
+	            	 	}
+	            	}
 	        }
 	    }
-	    private static void leaderElection() throws GameActionException {
+	    public static void leaderElection(RobotController rc) throws GameActionException {
 	        if (rc.getRoundNum()  == 0) {
 	            // First step: elect a leader archon
 	            if (rc.getType() == RobotType.ARCHON) {
@@ -180,21 +184,21 @@ public class Utilities {
 	            }
 	        }
 	    }
-	    static void sendInstructions(MapLocation enemy) throws GameActionException {
+	    static void sendInstructions(RobotController rc, MapLocation enemy) throws GameActionException {
 	        // Possible improvement: stop sending the same message over and over again
 	        // since it will just increase our delay.
 	        MapLocation loc = rc.getLocation();
 	        if (!archonFound && rc.getRoundNum()%3 == 4) {
-	            rc.broadcastMessageSignal(MOVE_X, loc.x, infinity);
-	            rc.broadcastMessageSignal(MOVE_Y, loc.y, infinity);
+	            rc.broadcastMessageSignal(MOVE_X, loc.x, rc.getType().attackRadiusSquared);
+	            rc.broadcastMessageSignal(MOVE_Y, loc.y, rc.getType().attackRadiusSquared);
 	        } else {
-	            rc.broadcastMessageSignal(MOVE_X, archonX, infinity);
-	            rc.broadcastMessageSignal(MOVE_Y, archonY, infinity);
+	            rc.broadcastMessageSignal(MOVE_X, archonX, rc.getType().sensorRadiusSquared);
+	            rc.broadcastMessageSignal(MOVE_Y, archonY, rc.getType().sensorRadiusSquared);
 	        }
 	        if(enemy.distanceSquaredTo(loc) < 3)
-	        	{rc.broadcastMessageSignal(targetX, targetY, rc.getType().attackRadiusSquared);}
+	        	{rc.broadcastMessageSignal(targetX, targetY, rc.getType().sensorRadiusSquared);}
 	    }
-	    static void readInstructions() throws GameActionException {
+	    static void readInstructions(RobotController rc) throws GameActionException {
 	        Signal[] signals = rc.emptySignalQueue();
 	        for (Signal s : signals) {
 	            if (s.getTeam() != rc.getTeam()) {

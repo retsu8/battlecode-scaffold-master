@@ -1,16 +1,18 @@
 package deathReaper2;
 
 import battlecode.common.*;
+import deathReaper2.Utilities;
 
 public class scoutCode {
     static void scoutCode(RobotController rc) throws GameActionException { 
+    	while(true){
         RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().attackRadiusSquared);
         if (rc.isCoreReady()) {
             if (Utilities.turnsLeft <= 0) {
-            	Utilities.direction = Utilities.pickNewDirection();
+            	Utilities.direction = Utilities.pickNewDirection(rc);
             } else {
             	Utilities.turnsLeft--;
-                rc.move(Utilities.tryToMove(Utilities.direction));
+                rc.move(Utilities.tryToMove(rc, Utilities.direction));
                 }
             }
             for (RobotInfo r : enemies) {
@@ -21,7 +23,7 @@ public class scoutCode {
                 else if(r.team == rc.getTeam().opponent()){
                     rc.broadcastMessageSignal(Utilities.MOVE_X, r.location.x, rc.getType().attackRadiusSquared);
                     rc.broadcastMessageSignal(Utilities.MOVE_Y, r.location.y, rc.getType().attackRadiusSquared);
-                    Utilities.runaway();
+                    Utilities.runaway(rc);
                 }
                 else if(r.team == Team.NEUTRAL){
                 	Utilities.direction = rc.getLocation().directionTo(r.location);
@@ -31,4 +33,5 @@ public class scoutCode {
             }
             Clock.yield();
         }
+    }
 }
