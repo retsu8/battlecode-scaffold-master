@@ -4,7 +4,7 @@ import battlecode.common.*;
 import deathReaper2.Utilities;
 
 public class scoutCode {
-    static void scoutCode(RobotController rc) throws GameActionException { 
+    static void Scout(RobotController rc) throws GameActionException { 
     	while(true){
         RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().attackRadiusSquared);
         if (rc.isCoreReady()) {

@@ -23,7 +23,7 @@ public class RobotPlayer {
 	        		case GUARD:{
 	        			Infantry.guardCode(rc);break;}
 	        		case SCOUT:{
-	        			 scoutCode.scoutCode(rc);break;}
+	        			 scoutCode.Scout(rc);break;}
 	        		case SOLDIER:{
 	        			Infantry.soldierCode(rc);break;}
 	        		case TURRET:{

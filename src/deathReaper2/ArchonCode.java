@@ -14,7 +14,7 @@ public class ArchonCode {
 			MapLocation[] parts = rc.sensePartLocations(rc.getType().sensorRadiusSquared);
 			RobotInfo[] neutral = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared,Team.NEUTRAL);
 			MapLocation target = new MapLocation(Utilities.targetX, Utilities.targetY);
-			Direction dir = rc.getLocation().directionTo(target);
+			Direction dir = Utilities.randomDirection(rc);
 			RobotInfo[] enemies = rc.senseHostileRobots(rc.getLocation(), rc.getType().sensorRadiusSquared);
 			Utilities.leaderElection(rc);
 			Utilities.readInstructions(rc);
@@ -40,7 +40,7 @@ public class ArchonCode {
 			if(enemies.length > 0)
 				Utilities.runaway(rc);
 			else{
-				Utilities.creationSpot(rc, Utilities.directions[2], RobotType.GUARD, enemies); }			
+				Utilities.creationSpot(rc, Utilities.directions[2], RobotType.VIPER, enemies); }			
 			Clock.yield();
 		} 
 	}

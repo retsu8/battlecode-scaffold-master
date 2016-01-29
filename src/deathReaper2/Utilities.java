@@ -72,6 +72,20 @@ public class Utilities {
 	        }
 	        return nearestRobot;
 	    }
+
+		public static MapLocation closestRobot(RobotController rc, MapLocation[] enemyArray) throws GameActionException{
+	        double nearSoFar = -100;
+	        MapLocation nearestRobot = null;
+	        for(MapLocation r: enemyArray)
+	        {
+	            int near = r.distanceSquaredTo(rc.getLocation());
+	            if(near> nearSoFar){
+	                nearestRobot=r;
+	                nearSoFar = near;
+	        	}
+	        }
+	        return nearestRobot;
+	    }
 	    static Direction randomDirection(RobotController rc) throws GameActionException{
 	    	Random rand = new Random(rc.getID());
 			int fate = rand.nextInt(1000)*rc.getRobotCount();
@@ -135,18 +149,19 @@ public class Utilities {
 	        if(rc.isCoreReady())
 	        {
 	        	for(RobotInfo r: enemies){
-	        		if(r.team == Team.ZOMBIE){	        			
+	        		if(r.team == Team.ZOMBIE){
 						zombie++;
 	        		}
 	        		if(r.team == rc.getTeam().opponent()){
 						opponent++;
 	        		}
-	        		if(zombie > 2 && r.type == RobotType.ZOMBIEDEN){
-	        			robot = RobotType.GUARD; break;}
-	        		else if(robot == RobotType.SCOUT && scoutNum <= 3){
-		        		scoutNum++;}
-		        	else if (robot == RobotType.SCOUT) {robot = RobotType.SOLDIER; break;}
 		        }
+	        	if(zombie > 3){
+        			robot = RobotType.GUARD;}
+        		else if(robot == RobotType.SCOUT && scoutNum <= 3){
+	        		scoutNum++;}
+	        	else if (robot == RobotType.SCOUT) {
+	        		robot = RobotType.SOLDIER;}
 	        	for(int i:possibleMovements){
 	            	 if(rc.isCoreReady()){
 	                    candidateDirection = directions[i];
